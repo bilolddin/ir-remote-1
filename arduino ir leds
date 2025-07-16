@@ -1,0 +1,56 @@
+#include <IRremote.hpp>
+
+const int IR_PIN = 2;
+
+// Пины светодиодов
+const int leds[] = { 3, 4, 5, 6, 7 };
+
+// Коды кнопок (замени, если у тебя другие)
+const uint8_t btnCodes[5] = {
+  0x45,  // Кнопка 1
+  0x46,  // Кнопка 2
+  0x47,  // Кнопка 3
+  0x44,  // Кнопка 4
+  0x40   // Кнопка 5
+};
+
+uint8_t lastCommand = 0;
+unsigned long lastTime = 0;
+const unsigned long debounceDelay = 300;  // Защита от дребезга 300 мс
+
+void setup() {
+  Serial.begin(9600);
+  IrReceiver.begin(IR_PIN, ENABLE_LED_FEEDBACK);
+
+  for (int i = 0; i < 5; i++) {
+    pinMode(leds[i], OUTPUT);
+    digitalWrite(leds[i], LOW);
+  }
+
+  Serial.println("Готов к приёму сигналов ИК-пульта");
+}
+
+void loop() {
+  if (IrReceiver.decode()) {
+    uint8_t cmd = IrReceiver.decodedIRData.command;
+
+    // Проверка, чтобы не срабатывало несколько раз подряд
+    if (cmd != lastCommand || millis() - lastTime > debounceDelay) {
+      lastCommand = cmd;
+      lastTime = millis();
+
+      Serial.print("Кнопка: 0x");
+      Serial.println(cmd, HEX);
+
+      // Перебираем 5 кнопок
+      for (int i = 0; i < 5; i++) {
+        if (cmd == btnCodes[i]) {
+          digitalWrite(leds[i], !digitalRead(leds[i]));  // Переключаем
+          break;
+        }
+      }
+    }
+
+    IrReceiver.resume();  // Готов к следующему сигналу
+  }
+}
